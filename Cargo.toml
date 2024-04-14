@@ -1,0 +1,20 @@
+[package]
+name = "esp32c6_example"
+version = "0.1.0"
+authors = ["David Lawrence <dlaw@dlaw.me>"]
+edition = "2021"
+license = "MIT"
+
+[profile.release]
+debug = true
+
+[profile.dev]
+opt-level = 3
+
+[dependencies]
+esp-backtrace = { version = "0.11", features = ["esp32c6", "panic-handler", "exception-handler", "println"] }
+esp-hal = { version = "0.16", features = ["esp32c6"] }
+esp-println = { version = "0.9", default-features = false, features = ["esp32c6", "critical-section", "colors", "jtag-serial"] }
+esp-wifi = { version = "0.4", features = ["esp32c6", "wifi-default", "phy-enable-usb"] }
+httparse = { version = "1.8", default-features = false }
+smoltcp = { version = "0.11", default-features = false }

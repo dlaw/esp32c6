@@ -1,0 +1,10 @@
+[default.general]
+chip = "esp32c6"
+
+[default.probe]
+usb_vid = "303a"
+usb_pid = "1001"
+protocol = "Jtag"
+
+[default.reset]
+halt_afterwards = true
