@@ -15,18 +15,21 @@ fn main() -> ! {
     println!("Firmware starting");
 
     let peripherals = esp_hal::peripherals::Peripherals::take();
-    let system = peripherals.SYSTEM.split();
+    let system = esp_hal::system::SystemControl::new(peripherals.SYSTEM);
 
-    let io = esp_hal::IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let mut led = io.pins.gpio15.into_push_pull_output();
+    let io = esp_hal::gpio::Io::new(peripherals.GPIO, peripherals.IO_MUX);
+    let mut led = esp_hal::gpio::Output::new(io.pins.gpio15, esp_hal::gpio::Level::Low);
+
+    let clocks = esp_hal::clock::ClockControl::max(system.clock_control).freeze();
+    let timer_group = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0, &clocks, None);
 
     // Wifi configuration
     let wifi_initialization = esp_wifi::initialize(
         esp_wifi::EspWifiInitFor::Wifi,
-        esp_hal::systimer::SystemTimer::new(peripherals.SYSTIMER).alarm0,
-        esp_hal::Rng::new(peripherals.RNG),
-        system.radio_clock_control,
-        &esp_hal::clock::ClockControl::max(system.clock_control).freeze(),
+        esp_hal::timer::PeriodicTimer::new(timer_group.timer0.into()),
+        esp_hal::rng::Rng::new(peripherals.RNG),
+        peripherals.RADIO_CLK,
+        &clocks,
     )
     .unwrap();
     let (mut wifi_device, mut wifi_controller) = wifi::new_with_config::<wifi::WifiStaDevice>(
@@ -95,10 +98,10 @@ fn main() -> ! {
         for tcp_connection in tcp_connections.iter_mut() {
             tcp_connection.handler(&mut sockets, |post_request| match post_request {
                 b"led=on" => {
-                    led.set_output_high(true);
+                    led.set_high();
                 }
                 b"led=off" => {
-                    led.set_output_high(false);
+                    led.set_low();
                 }
                 _ => println!("Bad POST request"),
             });
