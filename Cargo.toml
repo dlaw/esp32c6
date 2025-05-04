@@ -1,8 +1,8 @@
 [package]
 name = "esp32c6_example"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["David Lawrence <dlaw@dlaw.me>"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 
 [profile.release]
@@ -12,9 +12,10 @@ debug = true
 opt-level = 3
 
 [dependencies]
-esp-backtrace = { version = "0.13", features = ["esp32c6", "panic-handler", "exception-handler", "println"] }
-esp-hal = { version = "0.19", features = ["esp32c6"] }
-esp-println = { version = "0.10", default-features = false, features = ["esp32c6", "critical-section", "colors", "jtag-serial"] }
-esp-wifi = { version = "0.7", features = ["esp32c6", "wifi-default", "phy-enable-usb"] }
+esp-alloc = "0.7"
+esp-backtrace = { version = "0.15", features = ["esp32c6", "panic-handler", "exception-handler", "println"] }
+esp-hal = { version = "1.0.0-beta.0", features = ["esp32c6", "unstable"] }
+esp-println = { version = "0.13", default-features = false, features = ["esp32c6", "critical-section", "colors", "jtag-serial"] }
+esp-wifi = { version = "0.13", features = ["builtin-scheduler", "esp-alloc", "esp32c6", "wifi", "smoltcp"] }
 httparse = { version = "1.8", default-features = false }
-smoltcp = { version = "0.11", default-features = false }
+smoltcp = { version = "0.12", default-features = false, features = ["proto-ipv4", "proto-dhcpv4", "socket-udp", "socket-tcp", "socket-dhcpv4"] }

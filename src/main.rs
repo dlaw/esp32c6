@@ -5,51 +5,54 @@ const SSID: &str = "ssid";
 const PASSWORD: &str = "password";
 
 use esp_backtrace as _;
-use esp_hal::prelude::*;
 use esp_println::{print, println};
-use esp_wifi::{wifi, wifi::WifiDeviceMode};
+use esp_wifi::wifi;
 use smoltcp::{iface, socket::dhcpv4, socket::tcp, time, wire};
 
-#[entry]
+#[esp_hal::main]
 fn main() -> ! {
     println!("Firmware starting");
 
-    let peripherals = esp_hal::peripherals::Peripherals::take();
-    let system = esp_hal::system::SystemControl::new(peripherals.SYSTEM);
+    let config = esp_hal::Config::default().with_cpu_clock(esp_hal::clock::CpuClock::max());
+    let peripherals = esp_hal::init(config);
+    esp_alloc::heap_allocator!(size: 72 * 1024);
 
-    let io = esp_hal::gpio::Io::new(peripherals.GPIO, peripherals.IO_MUX);
-    let mut led = esp_hal::gpio::Output::new(io.pins.gpio15, esp_hal::gpio::Level::Low);
+    let mut led = esp_hal::gpio::Output::new(
+        peripherals.GPIO15,
+        esp_hal::gpio::Level::Low,
+        esp_hal::gpio::OutputConfig::default(),
+    );
 
-    let clocks = esp_hal::clock::ClockControl::max(system.clock_control).freeze();
-    let timer_group = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0, &clocks, None);
+    let timer_group = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0);
 
     // Wifi configuration
-    let wifi_initialization = esp_wifi::initialize(
-        esp_wifi::EspWifiInitFor::Wifi,
-        esp_hal::timer::PeriodicTimer::new(timer_group.timer0.into()),
+    let wifi_initialization = esp_wifi::init(
+        timer_group.timer0,
         esp_hal::rng::Rng::new(peripherals.RNG),
         peripherals.RADIO_CLK,
-        &clocks,
     )
     .unwrap();
-    let (mut wifi_device, mut wifi_controller) = wifi::new_with_config::<wifi::WifiStaDevice>(
-        &wifi_initialization,
-        peripherals.WIFI,
-        wifi::ClientConfiguration {
+    let (mut wifi_controller, interfaces) =
+        esp_wifi::wifi::new(&wifi_initialization, peripherals.WIFI).unwrap();
+    let mut wifi_device = interfaces.sta;
+    wifi_controller
+        .set_configuration(&wifi::Configuration::Client(wifi::ClientConfiguration {
             ssid: SSID.try_into().unwrap(),
             password: PASSWORD.try_into().unwrap(),
             ..Default::default()
-        },
-    )
-    .unwrap();
+        }))
+        .unwrap();
     wifi_controller.start().unwrap();
 
     // Smoltcp configuration
-    let mac_address = &wifi::WifiStaDevice.mac_address();
     let mut interface = iface::Interface::new(
-        iface::Config::new(wire::EthernetAddress::from_bytes(mac_address).into()),
+        iface::Config::new(wire::EthernetAddress::from_bytes(&wifi_device.mac_address()).into()),
         &mut wifi_device,
-        time::Instant::from_millis(esp_wifi::current_millis() as i64),
+        time::Instant::from_micros(
+            esp_hal::time::Instant::now()
+                .duration_since_epoch()
+                .as_micros() as i64,
+        ),
     );
     const NUM_TCP_SOCKETS: usize = 3;
     let mut socket_storage: [iface::SocketStorage; 1 + NUM_TCP_SOCKETS] = Default::default();
@@ -87,7 +90,11 @@ fn main() -> ! {
 
         // 2. Update all smoltcp sockets
         interface.poll(
-            time::Instant::from_millis(esp_wifi::current_millis() as i64),
+            time::Instant::from_micros(
+                esp_hal::time::Instant::now()
+                    .duration_since_epoch()
+                    .as_micros() as i64,
+            ),
             &mut wifi_device,
             &mut sockets,
         );

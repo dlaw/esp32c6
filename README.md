@@ -4,11 +4,7 @@ This is a bare-metal Rust firmware which runs on the ESP32-C6.  There is no stan
 
 ### Wifi
 
-Wifi support is provided by [esp-wifi](https://github.com/esp-rs/esp-wifi/tree/main/esp-wifi).  This is a nicely Rust-ified wrapper around the C interface to the Espressif-provided binary blob.  The firmware connects to a pre-specified network, and automatically attempts to reconnect anytime the connection is lost.  Remember to substitute your network's SSID and password into `src/main.rs`.
-
-### Networking
-
-Unlike the esp-wifi examples, we interact with [smoltcp](https://github.com/smoltcp-rs/smoltcp) directly instead of using esp-wifi's [wifi_interface wrappers](https://github.com/esp-rs/esp-wifi/blob/main/esp-wifi/src/wifi_interface.rs). (The wrappers don't subtract much complexity, while at the same time they hide some very important details of smoltcp.)  The firmware is set up to get an ipv4 address over DHCP.
+Wifi support is provided by [esp-wifi](https://github.com/esp-rs/esp-wifi/tree/main/esp-wifi).  This is a nicely Rust-ified wrapper around the C interface to the Espressif-provided binary blob.  The firmware connects to a pre-specified network, and automatically attempts to reconnect anytime the connection is lost.  Remember to substitute your network's SSID and password into `src/main.rs`.  The firmware is set up to get an ipv4 address over DHCP.
 
 ### LED
 
