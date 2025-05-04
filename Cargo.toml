@@ -17,5 +17,13 @@ esp-backtrace = { version = "0.15", features = ["esp32c6", "panic-handler", "exc
 esp-hal = { version = "1.0.0-beta.0", features = ["esp32c6", "unstable"] }
 esp-println = { version = "0.13", default-features = false, features = ["esp32c6", "critical-section", "colors", "jtag-serial"] }
 esp-wifi = { version = "0.13", features = ["builtin-scheduler", "esp-alloc", "esp32c6", "wifi", "smoltcp"] }
+esp32c6 = { version = "0.19", features = ["critical-section"] }
 httparse = { version = "1.8", default-features = false }
+rtic = { version = "2.1", features = ["riscv-esp32c6-backend"] }
+rtic-monotonics = { version = "2.0", features = ["esp32c6-systimer"] }
 smoltcp = { version = "0.12", default-features = false, features = ["proto-ipv4", "proto-dhcpv4", "socket-udp", "socket-tcp", "socket-dhcpv4"] }
+
+# RTIC's ESP32C6 support is merged to main, but not yet released.
+[patch.crates-io]
+rtic = { git = "https://github.com/rtic-rs/rtic" }
+rtic-monotonics = { git = "https://github.com/rtic-rs/rtic" }
