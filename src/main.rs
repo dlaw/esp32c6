@@ -6,8 +6,10 @@ const PASSWORD: &str = "password";
 
 use esp_backtrace as _;
 use esp_println::{print, println};
-use esp_wifi::wifi;
+use esp_radio::wifi;
 use smoltcp::{iface, socket::dhcpv4, socket::tcp, time, wire};
+
+esp_bootloader_esp_idf::esp_app_desc!();
 
 #[esp_hal::main]
 fn main() -> ! {
@@ -24,23 +26,21 @@ fn main() -> ! {
     );
 
     let timer_group = esp_hal::timer::timg::TimerGroup::new(peripherals.TIMG0);
+    let sw_int =
+        esp_hal::interrupt::software::SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
+    esp_rtos::start(timer_group.timer0, sw_int.software_interrupt0);
 
     // Wifi configuration
-    let wifi_initialization = esp_wifi::init(
-        timer_group.timer0,
-        esp_hal::rng::Rng::new(peripherals.RNG),
-        peripherals.RADIO_CLK,
-    )
-    .unwrap();
+    let esp_radio_ctrl = esp_radio::init().unwrap();
     let (mut wifi_controller, interfaces) =
-        esp_wifi::wifi::new(&wifi_initialization, peripherals.WIFI).unwrap();
+        esp_radio::wifi::new(&esp_radio_ctrl, peripherals.WIFI, Default::default()).unwrap();
     let mut wifi_device = interfaces.sta;
     wifi_controller
-        .set_configuration(&wifi::Configuration::Client(wifi::ClientConfiguration {
-            ssid: SSID.try_into().unwrap(),
-            password: PASSWORD.try_into().unwrap(),
-            ..Default::default()
-        }))
+        .set_config(&wifi::ModeConfig::Client(
+            wifi::ClientConfig::default()
+                .with_ssid(SSID.into())
+                .with_password(PASSWORD.into()),
+        ))
         .unwrap();
     wifi_controller.start().unwrap();
 
@@ -160,15 +160,11 @@ impl Default for TcpConnection {
 }
 
 impl TcpConnection {
-    fn reset(self: &mut Self, sockets: &mut iface::SocketSet) {
+    fn reset(&mut self, sockets: &mut iface::SocketSet) {
         sockets.get_mut::<tcp::Socket>(self.socket_handle).abort();
         self.buffer_index = 0;
     }
-    fn handler(
-        self: &mut Self,
-        sockets: &mut iface::SocketSet,
-        mut post_handler: impl FnMut(&[u8]),
-    ) {
+    fn handler(&mut self, sockets: &mut iface::SocketSet, mut post_handler: impl FnMut(&[u8])) {
         let socket = sockets.get_mut::<tcp::Socket>(self.socket_handle);
         if !socket.is_open() {
             self.buffer_index = 0;
@@ -197,12 +193,11 @@ impl TcpConnection {
         let mut content_length = 0;
         // Extract the value of the Content-Length header
         for header in http_request.headers.iter() {
-            if header.name == "Content-Length" {
-                if let Ok(value) = core::str::from_utf8(header.value) {
-                    if let Ok(value) = value.parse() {
-                        content_length = value;
-                    }
-                }
+            if header.name == "Content-Length"
+                && let Ok(value) = core::str::from_utf8(header.value)
+                && let Ok(value) = value.parse()
+            {
+                content_length = value;
             }
         }
         if self.buffer_index < num_bytes + content_length {
